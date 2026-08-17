@@ -1,0 +1,415 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titling}
+
+\newcommand{\BvrHint}[1]{%
+  {\normalfont\normalsize\itshape\hfill #1}}
+
+\pretitle{\begin{center}\bfseries\fontsize{18bp}{18bp}\selectfont}
+\posttitle{\par\end{center}\vskip 0.5em}
+
+\title{AI Response Analysis and Prompt Engineering Platform}
+
+\author{Student Project Proposal}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Higher-order goal%
+  \BvrHint{\ldots secondary framing}}
+
+This project aims to help users understand, evaluate, and improve the AI
+responses they receive from generative AI systems. The proposed software will
+primarily function as an AI response analysis and explanation platform, with
+prompt engineering used as a supporting mechanism for improving unsatisfactory
+responses.
+
+The immediate engineering objective is to build a usable dashboard that
+examines the quality, structure, relevance, clarity, completeness, and
+constraint alignment of AI-generated responses. It will also provide
+user-facing explanations connecting observable response characteristics with
+the user's prompt and requested requirements. The project will not attempt to
+reveal hidden model reasoning or internal chain-of-thought.
+
+\section{Time-to-value%
+  \BvrHint{\ldots primary heuristic}}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item The first iteration will provide AI response generation and a
+    basic response quality analysis.
+    \item Subsequent iterations will add response explanation, response
+    diagnosis, response comparison, prompt analysis, and prompt improvement.
+    \item Development will prioritize simple, demonstrable features that can
+    be tested independently and integrated into the final dashboard.
+    \item Success is defined by helping users understand why an AI response
+    has its observable characteristics, identify problems, and improve the
+    result when necessary.
+\end{itemize}
+
+\section{Problem Statement}
+
+Users frequently receive AI responses that are too long, too short, too
+technical, incomplete, poorly structured, irrelevant, or not aligned with
+their requested format. Although users can see the final response, they may
+not understand what caused these observable characteristics or how to decide
+whether the response is actually suitable for their goal.
+
+Common pain points include:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Limited response understanding:} users may receive an
+    answer without knowing whether it is relevant, complete, clear,
+    concise, well-structured, or aligned with their request.
+    \item \textbf{Difficulty diagnosing poor responses:} users may know that
+    an answer is unsatisfactory but may not know whether the problem comes
+    from missing context, excessive detail, weak structure, or unmet
+    constraints.
+    \item \textbf{Lack of response transparency:} users generally see the
+    final answer but do not receive a simple analysis of the observable
+    factors associated with that answer.
+    \item \textbf{Repeated trial and error:} users may repeatedly regenerate
+    answers instead of understanding what should be changed.
+    \item \textbf{Inefficient AI usage:} users with limited messages,
+    responses, or usage quotas can benefit from analyzing an answer and
+    improving the next request before using another interaction.
+\end{itemize}
+
+\textbf{Why this matters now (contextual relevance):} Generative AI is being
+used for education, programming, research, writing, summarization, coding,
+and everyday information tasks. As AI-generated content becomes more common,
+users need practical ways to evaluate whether a response is useful and
+understand why it has a particular style, level of detail, or structure.
+This is especially valuable when users have limited AI interactions available
+and need to obtain useful results efficiently.
+
+\section{Proposed Solution%
+  \BvrHint{\ldots Software Proposition}}
+
+\subsection{Overview}
+
+Build a \textbf{web-based AI Response Analysis and Prompt Engineering
+Platform} with the following components:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{AI response analyzer:} evaluates relevance, clarity,
+    conciseness, completeness, structure, usefulness, and adherence to
+    requested constraints.
+    \item \textbf{Response diagnosis:} identifies observable strengths and
+    weaknesses such as excessive length, missing information, poor structure,
+    unnecessary detail, or failure to follow requested format.
+    \item \textbf{Response explanation:} provides a user-facing explanation
+    of why the response has its observable characteristics by relating the
+    response to prompt instructions and requested requirements.
+    \item \textbf{Prompt analyzer:} identifies task, topic, audience, context,
+    constraints, desired length, tone, and output format.
+    \item \textbf{Prompt optimizer:} suggests changes to the prompt when the
+    response does not satisfy the user's objective.
+    \item \textbf{Comparison dashboard:} compares responses from different
+    prompt versions and shows how their observable characteristics differ.
+\end{itemize}
+
+\subsection{Core workflow}
+
+\begin{enumerate}[leftmargin=0.7cm]
+    \item User enters a prompt and generates an AI response.
+    \item The system analyzes the response for relevance, clarity,
+    conciseness, completeness, structure, and adherence to the user's
+    requirements.
+    \item The dashboard identifies strengths, weaknesses, and possible
+    response problems.
+    \item The response explanation relates observable characteristics of the
+    answer to identifiable instructions in the prompt.
+    \item If the response is unsatisfactory, the system analyzes the prompt
+    and suggests targeted improvements.
+    \item The user can generate a revised response and compare it with the
+    original response.
+    \item The dashboard presents the comparison as a learning loop showing
+    how prompt changes can affect observable response characteristics.
+\end{enumerate}
+
+\subsection{Operational constraints for an educational setting}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Keep the project focused on text-based generative AI response
+    analysis and user-facing explanation, with prompt engineering as a
+    supporting improvement feature.
+    \item Use an existing AI API instead of developing or training a large
+    language model.
+    \item Avoid claiming that individual words causally determine specific
+    model outputs; explanations will be presented as likely effects based on
+    prompt structure and observable response changes.
+    \item Keep the first implementation small enough for a three-person team
+    to complete within one semester.
+    \item Prioritize software correctness, usability, measurable response
+    analysis, response explanation, and practical experimentation over
+    advanced AI research.
+\end{itemize}
+
+\section{Solution Approach%
+  \BvrHint{\ldots Engineering focus}}
+
+This is an engineering course project, so the focus will be on building a
+practical software platform around an existing generative AI service. The
+main contribution is the integration of response analysis, response
+diagnosis, user-facing explanation, prompt analysis, and response comparison
+into one application.
+
+\subsection{Response analysis and prompt assistance%
+  \BvrHint{\ldots non-research}}
+
+Response analysis will be the primary analysis component of the system.
+It will examine observable characteristics of generated answers, including:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Relevance:} whether the response addresses the user's
+    actual request and avoids unnecessary information.
+    \item \textbf{Clarity:} whether the response is understandable and uses
+    an appropriate level of language for the requested audience.
+    \item \textbf{Conciseness:} whether the response avoids unnecessary
+    repetition and matches the requested level of detail.
+    \item \textbf{Completeness:} whether the important parts of the requested
+    task have been addressed.
+    \item \textbf{Structure:} whether headings, bullets, steps, examples, or
+    other requested formats are used appropriately.
+    \item \textbf{Constraint adherence:} whether the response follows
+    requirements such as word limits, tone, format, or audience.
+    \item \textbf{Response diagnosis:} identifies observable problems and
+    gives practical suggestions for improvement.
+\end{itemize}
+
+The response explanation will then connect these observations with the
+prompt. For example, the system may identify that a response became detailed
+because the prompt requested a detailed explanation, or that the response
+was difficult for a beginner because no audience or complexity level was
+specified. These are observable, user-facing explanations rather than claims
+about hidden model reasoning.
+
+Prompt assistance will identify task, topic, audience, context, constraints,
+length, tone, and output format, and can suggest improvements when the
+response analysis shows that the original request was insufficient.
+
+\subsection{Web architecture%
+  \BvrHint{\ldots web-based solution}}
+
+A typical 3-tier web architecture:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Frontend:} responsive interface for entering prompts,
+    viewing AI responses, displaying response-quality scores, showing
+    response explanations and detected issues, and comparing responses.
+    \item \textbf{Backend API:} handles AI API requests, response analysis,
+    response diagnosis, response explanation, prompt analysis, prompt
+    optimization, comparison logic, and history.
+    \item \textbf{Database:} stores prompts, prompt versions, AI responses,
+    selected objectives, analysis results, and timestamps.
+\end{itemize}
+
+\subsection{CI/CD and fast delivery enabler}
+
+CI/CD will be used to:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Automatically build the application and run tests on every change.
+    \item Validate backend API and core prompt-processing functionality.
+    \item Produce repeatable deployment artifacts.
+    \item Support incremental development and safe integration of features.
+\end{itemize}
+
+\section{Evaluation Criterion%
+  \BvrHint{\ldots measurable and attributable}}
+
+We define success primarily using measurable criteria related to AI
+response quality, response alignment, explanation usefulness, and the
+ability of the platform to help users diagnose and improve unsatisfactory
+responses.
+
+\subsection{Primary evaluation metric}
+
+\textbf{AI response quality and alignment:} measure whether the platform
+can consistently identify important observable response characteristics and
+whether generated responses satisfy the user's requested objective and
+constraints.
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Evaluate response relevance, clarity, conciseness, completeness,
+    structure, and compliance with requested constraints.
+    \item Check whether identified response strengths and weaknesses are
+    consistent with the actual response.
+    \item Check whether the response explanation is supported by observable
+    prompt and response characteristics.
+    \item Compare original and revised responses to determine whether a
+    targeted prompt change improved the selected response criteria.
+\end{itemize}
+
+\subsection{Secondary evaluation metrics}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Response quality:} relevance, clarity, conciseness,
+    completeness, structure, and usefulness.
+    \item \textbf{Response alignment:} degree to which the response follows
+    requested length, format, audience, tone, and other constraints.
+    \item \textbf{Response diagnosis accuracy:} whether detected strengths,
+    weaknesses, and constraint mismatches correspond to the actual response.
+    \item \textbf{Explanation usefulness:} whether users understand the
+    observable reasons associated with the response characteristics.
+    \item \textbf{Prompt impact:} whether targeted prompt changes produce
+    measurable changes in response characteristics.
+    \item \textbf{Efficiency:} reduction in unnecessary repeated prompts
+    needed to obtain a satisfactory response during controlled tests.
+\end{itemize}
+
+\subsection{Pilot validation plan%
+  \BvrHint{\ldots high-level}}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Prepare common tasks such as explanation, summarization, coding,
+    question answering, and summarizing text.
+    \item Generate representative AI responses and evaluate them using the
+    response-analysis dashboard.
+    \item Test whether the system correctly identifies issues such as
+    excessive length, missing information, poor structure, or unmet format
+    requirements.
+    \item Ask a small group of users whether the response explanations are
+    understandable and whether the diagnosis helps them improve an answer.
+    \item Test selected prompt changes and compare the resulting responses
+    to determine whether the platform identifies meaningful improvements.
+\end{itemize}
+
+\section{Scalability%
+  \BvrHint{\ldots with foresight}}
+
+The platform should be scalable in both its software architecture and its
+ability to support different AI response types, evaluation criteria, and
+improvement workflows.
+
+\begin{enumerate}[leftmargin=0.7cm]
+    \item \textbf{Scalable (theoretically):} the system can support growth by:
+    \begin{itemize}[leftmargin=0.7cm]
+        \item separating frontend, backend, AI integration, and database
+        components,
+        \item using pagination for conversation and prompt history,
+        \item indexing common database queries,
+        \item allowing additional response metrics, explanation criteria,
+        and prompt objectives to be added as modules,
+        \item supporting multiple AI providers through a common backend
+        interface in future versions.
+    \end{itemize}
+
+    \item \textbf{Operationally deployable (practically):} the system should
+    run using:
+    \begin{itemize}[leftmargin=0.7cm]
+        \item standard web hosting,
+        \item a managed or local database,
+        \item containerized deployment where appropriate,
+        \item CI/CD for repeatable builds and releases.
+    \end{itemize}
+\end{enumerate}
+
+\section{Engine availability heuristic}
+
+A mature set of tools and services is available to implement the platform:
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Web framework such as React or Next.js for the frontend.
+    \item Python and FastAPI for backend REST APIs.
+    \item A generative AI API for response generation.
+    \item Natural-language processing and text-processing libraries for
+    prompt and response analysis.
+    \item PostgreSQL or another suitable database for prompt and response
+    history.
+    \item Visualization libraries for quality scores and prompt comparisons.
+    \item Testing tools for backend, API, and prompt-analysis validation.
+    \item Docker and CI/CD tools for deployment and repeatable development.
+\end{itemize}
+
+We will use mature components to focus on AI response analysis, response
+explanation, prompt improvement, usability, and system integration rather than
+developing a language model or AI infrastructure from scratch.
+
+\section{Project scope and deliverables%
+  \BvrHint{\ldots iteration-friendly}}
+
+\subsection{Initial deliverable%
+  \BvrHint{\ldots first iteration}}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Prompt input and AI response generation.
+    \item Core response-quality analysis for relevance, clarity,
+    conciseness, completeness, structure, and constraint adherence.
+    \item Response strengths, weaknesses, and response-diagnosis display.
+    \item Basic response explanation connecting observable characteristics
+    with prompt requirements.
+    \item Basic prompt component identification.
+    \item Initial prompt improvement suggestions.
+    \item Database storage for prompts and responses.
+    \item Basic frontend and backend integration.
+    \item Automated tests for the main workflow.
+\end{itemize}
+
+\subsection{Subsequent deliverables}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item Detailed response explanation and response diagnosis.
+    \item Prompt and response comparison with quality metrics.
+    \item Response analysis for multiple task types such as explanation,
+    coding, summarization, and question answering.
+    \item Conversation and response history.
+    \item Prompt evolution showing how successive changes affect responses.
+    \item Prompt A/B testing for selected use cases.
+    \item Prompt templates and learning suggestions.
+    \item Optional support for multiple AI providers if time permits.
+\end{itemize}
+
+\section{Risks and mitigations}
+
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Overclaiming AI explanations:} do not claim access to hidden
+    model reasoning; explain only observable relationships between prompt
+    structure and response characteristics.
+    \item \textbf{Subjective response quality:} use clearly defined metrics
+    and controlled comparisons rather than claiming a single universal
+    quality score.
+    \item \textbf{API limitations or cost:} use controlled test cases,
+    configurable models, and minimize unnecessary API calls.
+    \item \textbf{Project scope becoming too large:} prioritize response
+    analysis, response explanation, response comparison, and basic prompt
+    improvement before optional features.
+    \item \textbf{Data privacy:} avoid storing unnecessary personal or
+    sensitive conversation content and provide clear controls for stored
+    history.
+    \item \textbf{Model variability:} record the selected model and relevant
+    request information when comparing responses so that results can be
+    interpreted correctly.
+    \item \textbf{Evaluation ambiguity:} define test prompts, objectives,
+    response criteria, and comparison procedures before final evaluation.
+\end{itemize}
+
+\section{Summary}
+
+This project proposes a deployable web platform centered on understanding
+and improving AI-generated responses. The system evaluates responses for
+relevance, clarity, conciseness, completeness, structure, usefulness, and
+adherence to requested constraints. It then provides a user-facing diagnosis
+and explanation of observable response characteristics.
+
+Prompt engineering is used as a supporting mechanism: the system identifies
+important prompt components and suggests targeted changes when the response
+does not satisfy the user's goal. Users can compare original and revised
+responses to see whether those changes improved the result. The overall
+learning loop is:
+
+\textbf{Prompt -> AI Response -> Response Analysis -> Explanation ->
+Prompt Improvement -> Revised Response -> Comparison}
+
+The project remains focused on software engineering rather than developing a
+new language model. It combines frontend development, backend APIs, AI
+integration, natural-language processing, database management, visualization,
+testing, and deployment into a manageable three-person semester project.
+
+\end{document}
