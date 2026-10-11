@@ -160,7 +160,7 @@ export default function App() {
               <p className="eyebrow">02 / RESPONSE</p>
               <h2>Generated answer</h2>
             </div>
-            <span className={`mode-pill ${result.mode}`}>{result.mode === "live" ? "Live · Anthropic" : "Demo · Sample"}</span>
+            <span className={`mode-pill ${result.mode}`}>{result.mode === "live" ? "Live · Gemini" : "Demo · Sample"}</span>
           </div>
           <article className="response-card panel">
             <div className="response-meta"><span>MODEL</span><span>{result.model}</span></div>

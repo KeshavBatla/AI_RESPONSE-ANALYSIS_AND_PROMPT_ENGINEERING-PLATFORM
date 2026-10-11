@@ -59,7 +59,7 @@ def architecture():
          "FastAPI Backend\nPOST /api/generate\nPOST /api/analyze • GET /api/health\nNo key + DEMO_MODE=true\n→ labelled demo sample",
          color=GREEN)
     node(ax, (8.75, 4.65), (2.8, 1.15),
-         "Anthropic Messages API\nLive generation", color=AMBER)
+         "Google Gemini API\nLive text generation", color=AMBER)
     node(ax, (8.75, 2.55), (2.8, 1.15),
          "Shared Heuristic Analyzer\nKeyword • sentence • length\ncoverage • format")
     flow(ax, (2.9, 4.1), (4.0, 4.1), "requests", label_offset=(0, .22))
@@ -85,7 +85,7 @@ def dfd_level0():
          "0. Response Analysis\nPlatform\nGenerate • analyze • present",
          ellipse=True, font_size=12)
     node(ax, (9.45, 3.0), (2.0, 1.3),
-         "External AI Provider\n(Anthropic)", color=GREEN)
+         "External AI Provider\n(Google Gemini)", color=GREEN)
     flow(ax, (2.55, 4.0), (4.3, 4.0), "prompt", label_offset=(0, .22))
     flow(ax, (4.3, 3.0), (2.55, 3.0), "response + five scores",
          label_offset=(0, -.24))
@@ -104,7 +104,7 @@ def dfd_level1():
          ellipse=True)
     node(ax, (5.25, 4.35), (2.2, 1.2), "2.0 Generate response",
          ellipse=True, color=GREEN)
-    node(ax, (9.7, 4.45), (1.95, 1.0), "Anthropic API", color=AMBER)
+    node(ax, (9.7, 4.45), (1.95, 1.0), "Google Gemini API", color=AMBER)
     node(ax, (5.25, 1.65), (2.2, 1.2), "3.0 Analyze prompt\nand response",
          ellipse=True)
     node(ax, (9.0, 1.65), (2.35, 1.2), "4.0 Return response,\nscores and notes",

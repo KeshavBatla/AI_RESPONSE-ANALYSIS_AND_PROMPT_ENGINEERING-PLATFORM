@@ -1,18 +1,25 @@
+import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Literal
 
-import httpx
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field
 
 from Gurshant.database_analysis import analyze_response
 
+ROOT_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(ROOT_ENV_FILE)
+
 app = FastAPI(title="AI Response Analysis Platform - Backend")
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "gemini-3.8-flash"
 MAX_PROMPT_LENGTH = 12_000
 MAX_RESPONSE_LENGTH = 50_000
 
@@ -60,7 +67,7 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         if os.getenv("DEMO_MODE", "").strip().lower() == "true":
             return GenerateResponse(
@@ -71,20 +78,20 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         raise HTTPException(
             status_code=503,
             detail=(
-                "AI generation is not configured. Set ANTHROPIC_API_KEY or enable "
+                "AI generation is not configured. Set GEMINI_API_KEY or enable "
                 "DEMO_MODE=true for a clearly labelled demonstration response."
             ),
         )
 
-    model = os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    model = os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
     try:
         text = await call_ai_provider(req.prompt, model, api_key)
-    except AIProviderError as exc:
-        logger.warning("Anthropic generation failed: %s", exc)
+    except AIProviderError:
+        logger.warning("Gemini generation failed")
         raise HTTPException(
             status_code=502,
             detail="The AI provider could not complete the request. Please try again.",
-        ) from exc
+        ) from None
 
     return GenerateResponse(response=text, model=model, mode="live")
 
@@ -105,38 +112,29 @@ class AIProviderError(Exception):
 
 async def call_ai_provider(prompt: str, model: str, api_key: str) -> str:
     try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(30.0, connect=5.0)
-        ) as client:
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 1024,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-    except (httpx.HTTPError, ValueError) as exc:
+        return await asyncio.to_thread(
+            _generate_gemini_text, prompt, model, api_key
+        )
+    except AIProviderError:
+        raise
+    except Exception as exc:
         raise AIProviderError(type(exc).__name__) from exc
 
-    content = data.get("content") if isinstance(data, dict) else None
-    if not isinstance(content, list):
-        raise AIProviderError("Invalid provider response")
-    text = "".join(
-        block["text"]
-        for block in content
-        if isinstance(block, dict) and isinstance(block.get("text"), str)
-    ).strip()
-    if not text:
-        raise AIProviderError("Provider returned no text")
-    return text
+
+def _generate_gemini_text(prompt: str, model: str, api_key: str) -> str:
+    try:
+        with genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=30_000),
+        ) as client:
+            response = client.interactions.create(model=model, input=prompt)
+    except Exception as exc:
+        raise AIProviderError(type(exc).__name__) from exc
+
+    text = response.output_text
+    if not isinstance(text, str) or not text.strip():
+        raise AIProviderError("Gemini returned no text")
+    return text.strip()
 
 
 def demo_response(prompt: str) -> str:

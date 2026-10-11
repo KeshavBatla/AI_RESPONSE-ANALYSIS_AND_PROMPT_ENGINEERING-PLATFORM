@@ -13,7 +13,7 @@ def test_health_endpoint():
 
 
 def test_generate_rejects_empty_prompt_without_provider_call(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("DEMO_MODE", raising=False)
 
     response = client.post("/api/generate", json={"prompt": "   "})
@@ -58,16 +58,16 @@ def test_analysis_response_schema_contains_five_bounded_scores_and_explanations(
 
 
 def test_generate_without_key_returns_configuration_error(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("DEMO_MODE", "false")
 
     response = client.post("/api/generate", json={"prompt": "A valid prompt"})
     assert response.status_code == 503
-    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
+    assert "GEMINI_API_KEY" in response.json()["detail"]
 
 
 def test_demo_mode_is_deterministic_and_explicit(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("DEMO_MODE", "true")
 
     response = client.post("/api/generate", json={"prompt": "Explain photosynthesis"})
@@ -79,8 +79,9 @@ def test_demo_mode_is_deterministic_and_explicit(monkeypatch):
 
 
 def test_live_generation_uses_stubbed_provider_and_returns_live_mode(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-a-real-secret")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.setenv("GEMINI_MODEL", backend_main.DEFAULT_MODEL)
     calls = []
 
     async def fake_provider(prompt, model, api_key):
@@ -101,8 +102,10 @@ def test_live_generation_uses_stubbed_provider_and_returns_live_mode(monkeypatch
     ]
 
 
-def test_provider_failure_returns_generic_error_without_leaking_provider_detail(monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-a-real-secret")
+def test_provider_failure_returns_generic_error_without_leaking_provider_detail(
+    monkeypatch, caplog
+):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key-not-a-real-secret")
     monkeypatch.delenv("DEMO_MODE", raising=False)
 
     async def fail_provider(*_args):
@@ -116,3 +119,38 @@ def test_provider_failure_returns_generic_error_without_leaking_provider_detail(
         "The AI provider could not complete the request. Please try again."
     )
     assert "sensitive provider detail" not in response.text
+    assert "sensitive provider detail" not in caplog.text
+
+
+def test_gemini_sdk_request_and_text_parsing_are_stubbed(monkeypatch):
+    calls = {}
+
+    class FakeInteractions:
+        def create(self, *, model, input):
+            calls["request"] = (model, input)
+            return type("FakeResponse", (), {"output_text": "  Gemini response  "})()
+
+    class FakeClient:
+        def __init__(self, *, api_key, http_options):
+            calls["api_key"] = api_key
+            calls["timeout"] = http_options.timeout
+            self.interactions = FakeInteractions()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            calls["closed"] = True
+
+    monkeypatch.setattr(backend_main.genai, "Client", FakeClient)
+    text = backend_main._generate_gemini_text(
+        "Test prompt", "gemini-3.8-flash", "test-key-not-a-real-secret"
+    )
+
+    assert text == "Gemini response"
+    assert calls == {
+        "api_key": "test-key-not-a-real-secret",
+        "timeout": 30_000,
+        "request": ("gemini-3.8-flash", "Test prompt"),
+        "closed": True,
+    }
