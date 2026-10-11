@@ -60,7 +60,7 @@ class AnalysisRecord(Base):
     response = relationship("ResponseRecord", back_populates="analysis")
 
 
-def get_session(db_url: str = "postgresql://user:pass@localhost/ai_analysis"):
+def get_session(db_url: str):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)()
@@ -110,6 +110,11 @@ _STOPWORDS = {
 
 
 def analyze_response(prompt: str, response: str) -> AnalysisResult:
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ValueError("prompt must be a non-empty string")
+    if not isinstance(response, str) or not response.strip():
+        raise ValueError("response must be a non-empty string")
+
     explanations = []
 
     # Relevance: keyword overlap between prompt and response
@@ -155,11 +160,12 @@ def analyze_response(prompt: str, response: str) -> AnalysisResult:
     if not explanations:
         explanations.append("Response aligns well with the prompt on the measured criteria.")
 
+    clamp = lambda score: max(0, min(100, int(score)))
     return AnalysisResult(
-        relevance=int(relevance),
-        clarity=int(clarity),
-        conciseness=int(conciseness),
-        completeness=int(completeness),
-        structure=int(structure),
+        relevance=clamp(relevance),
+        clarity=clamp(clarity),
+        conciseness=clamp(conciseness),
+        completeness=clamp(completeness),
+        structure=clamp(structure),
         explanations=explanations,
     ).__dict__

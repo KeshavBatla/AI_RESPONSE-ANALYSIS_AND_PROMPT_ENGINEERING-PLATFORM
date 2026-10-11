@@ -1,100 +1,154 @@
-# backend/main.py
-# Member 2 — Backend
-# Week 1 deliverable: FastAPI service that (a) calls the AI provider to
-# generate a response for a given prompt, and (b) exposes an endpoint that
-# runs the response-analysis module (built by Member 3) and returns scores.
-
+import logging
 import os
+from typing import Literal
+
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-# NOTE: analyzer + DB models live in database/analysis.py (Member 3's file).
-# During integration, this import will point at the shared module, e.g.:
-# from database.analysis import analyze_response, save_interaction
-# For now this file includes a light local stub so the backend can run
-# and be demoed independently this week.
+from Gurshant.database_analysis import analyze_response
 
 app = FastAPI(title="AI Response Analysis Platform - Backend")
+logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL = "claude-sonnet-4-6"
+MAX_PROMPT_LENGTH = 12_000
+MAX_RESPONSE_LENGTH = 50_000
+
+
+def configured_origins() -> list[str]:
+    configured = os.getenv(
+        "FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    )
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this before deployment
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=configured_origins(),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
-
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 
 class GenerateRequest(BaseModel):
-    prompt: str
-    model: str = "claude-sonnet-4-6"
+    prompt: str = Field(max_length=MAX_PROMPT_LENGTH)
 
 
 class GenerateResponse(BaseModel):
     response: str
     model: str
+    mode: Literal["live", "demo"]
 
 
 class AnalyzeRequest(BaseModel):
-    prompt: str
-    response: str
+    prompt: str = Field(max_length=MAX_PROMPT_LENGTH)
+    response: str = Field(max_length=MAX_RESPONSE_LENGTH)
+
+
+class AnalysisResponse(BaseModel):
+    relevance: int = Field(ge=0, le=100)
+    clarity: int = Field(ge=0, le=100)
+    conciseness: int = Field(ge=0, le=100)
+    completeness: int = Field(ge=0, le=100)
+    structure: int = Field(ge=0, le=100)
+    explanations: list[str] = Field(min_length=1)
 
 
 @app.post("/api/generate", response_model=GenerateResponse)
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest) -> GenerateResponse:
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
-    try:
-        text = await call_ai_provider(req.prompt, req.model)
-    except Exception as exc:  # pragma: no cover - network dependent
-        raise HTTPException(status_code=502, detail=f"AI provider error: {exc}")
-
-    return GenerateResponse(response=text, model=req.model)
-
-
-@app.post("/api/analyze")
-async def analyze(req: AnalyzeRequest):
-    # Delegates to Member 3's analysis module once merged. Placeholder
-    # local scoring keeps this endpoint runnable during independent testing.
-    from local_analysis_stub import analyze_response
-
-    result = analyze_response(req.prompt, req.response)
-    return result
-
-
-async def call_ai_provider(prompt: str, model: str) -> str:
-    """
-    Calls the Anthropic Messages API to generate a response for the given
-    prompt. Kept as a thin wrapper so the provider can be swapped later
-    (matches the 'multiple AI providers' scalability goal in the proposal).
-    """
-    import httpx
-
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set")
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": model,
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            },
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        if os.getenv("DEMO_MODE", "").strip().lower() == "true":
+            return GenerateResponse(
+                response=demo_response(req.prompt),
+                model="deterministic-demo",
+                mode="demo",
+            )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "AI generation is not configured. Set ANTHROPIC_API_KEY or enable "
+                "DEMO_MODE=true for a clearly labelled demonstration response."
+            ),
         )
-        resp.raise_for_status()
-        data = resp.json()
-        return "".join(block.get("text", "") for block in data.get("content", []))
+
+    model = os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    try:
+        text = await call_ai_provider(req.prompt, model, api_key)
+    except AIProviderError as exc:
+        logger.warning("Anthropic generation failed: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail="The AI provider could not complete the request. Please try again.",
+        ) from exc
+
+    return GenerateResponse(response=text, model=model, mode="live")
+
+
+@app.post("/api/analyze", response_model=AnalysisResponse)
+async def analyze(req: AnalyzeRequest) -> AnalysisResponse:
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+    if not req.response.strip():
+        raise HTTPException(status_code=400, detail="Response cannot be empty")
+
+    return AnalysisResponse(**analyze_response(req.prompt, req.response))
+
+
+class AIProviderError(Exception):
+    pass
+
+
+async def call_ai_provider(prompt: str, model: str, api_key: str) -> str:
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=5.0)
+        ) as client:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise AIProviderError(type(exc).__name__) from exc
+
+    content = data.get("content") if isinstance(data, dict) else None
+    if not isinstance(content, list):
+        raise AIProviderError("Invalid provider response")
+    text = "".join(
+        block["text"]
+        for block in content
+        if isinstance(block, dict) and isinstance(block.get("text"), str)
+    ).strip()
+    if not text:
+        raise AIProviderError("Provider returned no text")
+    return text
+
+
+def demo_response(prompt: str) -> str:
+    excerpt = " ".join(prompt.split())[:240]
+    return (
+        "DEMO MODE — this deterministic sample was not generated by an AI model.\n\n"
+        f"Your prompt: {excerpt}\n\n"
+        "A live model response would address the requested topic, organize the "
+        "main points, and follow any audience or format instructions."
+    )
 
 
 @app.get("/api/health")
-def health():
+def health() -> dict[str, str]:
     return {"status": "ok"}

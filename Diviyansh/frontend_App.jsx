@@ -1,136 +1,205 @@
-// frontend/src/App.jsx
-// Member 1 — Frontend
-// Week 1 deliverable: prompt input, AI response display, and a basic
-// visualization of the response-quality scores returned by the backend.
-
 import { useState } from "react";
+import "./frontend.css";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"
+).replace(/\/+$/, "");
 
-function ScoreBar({ label, value }) {
-  // value is expected to be 0-100
-  const color = value >= 75 ? "#2e7d32" : value >= 50 ? "#f9a825" : "#c62828";
+const SCORE_LABELS = [
+  ["relevance", "Relevance", "Keyword overlap with the prompt"],
+  ["clarity", "Clarity", "Average sentence length"],
+  ["conciseness", "Conciseness", "Response word count"],
+  ["completeness", "Completeness", "Coverage of prompt components"],
+  ["structure", "Structure", "Headings and list formatting"],
+];
+
+const SAMPLE_PROMPT =
+  "Explain photosynthesis to a class 8 student in three bullet points.";
+
+async function requestJson(path, body) {
+  const response = await fetch(`${API_BASE}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = Array.isArray(data.detail)
+      ? data.detail.map((item) => item.msg).join(" ")
+      : data.detail;
+    throw new Error(detail || `Request failed (${response.status})`);
+  }
+  return data;
+}
+
+function ScoreCard({ label, description, value }) {
+  const tone = value >= 75 ? "strong" : value >= 50 ? "moderate" : "low";
   return (
-    <div style={{ marginBottom: "8px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-        <span>{label}</span>
-        <span>{value}/100</span>
+    <article className="score-card">
+      <div className="score-card-top">
+        <span className="score-label">{label}</span>
+        <span className={`score-value ${tone}`}>{value}<small>/100</small></span>
       </div>
-      <div style={{ background: "#eee", borderRadius: "4px", height: "8px" }}>
-        <div
-          style={{
-            width: `${value}%`,
-            background: color,
-            height: "8px",
-            borderRadius: "4px",
-            transition: "width 0.3s ease",
-          }}
-        />
+      <div
+        className="score-track"
+        role="meter"
+        aria-label={`${label} heuristic score`}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={value}
+      >
+        <span className={`score-fill ${tone}`} style={{ width: `${value}%` }} />
       </div>
-    </div>
+      <p>{description}</p>
+    </article>
   );
 }
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [response, setResponse] = useState(null);
+  const [result, setResult] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerate = async (event) => {
+    event.preventDefault();
+    if (!prompt.trim()) {
+      setError("Enter a prompt before generating a response.");
+      return;
+    }
     setLoading(true);
     setError(null);
-    setResponse(null);
+    setResult(null);
     setAnalysis(null);
 
     try {
-      // Step 1: get the AI response
-      const genRes = await fetch(`${API_BASE}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+      const generated = await requestJson("generate", { prompt: prompt.trim() });
+      const scored = await requestJson("analyze", {
+        prompt: prompt.trim(),
+        response: generated.response,
       });
-      if (!genRes.ok) throw new Error("Generation request failed");
-      const genData = await genRes.json();
-      setResponse(genData.response);
-
-      // Step 2: analyze the response against the prompt
-      const analyzeRes = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, response: genData.response }),
-      });
-      if (!analyzeRes.ok) throw new Error("Analysis request failed");
-      const analyzeData = await analyzeRes.json();
-      setAnalysis(analyzeData);
+      setResult(generated);
+      setAnalysis(scored);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: "700px", margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: "22px" }}>AI Response Analysis Platform</h1>
-      <p style={{ color: "#555", fontSize: "14px" }}>
-        Enter a prompt, generate a response, and see a breakdown of its quality.
-      </p>
+    <main className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="/" aria-label="ResponseLens home">
+          <span className="brand-mark" aria-hidden="true">R</span>
+          <span>ResponseLens</span>
+        </a>
+        <span className="prototype-label"><span /> Prototype</span>
+      </header>
 
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Type your prompt here..."
-        rows={4}
-        style={{ width: "100%", padding: "10px", fontSize: "14px", boxSizing: "border-box" }}
-      />
+      <section className="intro">
+        <p className="eyebrow">AI RESPONSE EVALUATION</p>
+        <h1>Understand the answer.<br /><span>Improve the next prompt.</span></h1>
+        <p className="intro-copy">
+          Generate a response and explore five transparent, heuristic quality indicators.
+        </p>
+      </section>
 
-      <button
-        onClick={handleGenerate}
-        disabled={loading}
-        style={{
-          marginTop: "10px",
-          padding: "10px 18px",
-          background: "#1565c0",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Generating..." : "Generate & Analyze"}
-      </button>
-
-      {error && <p style={{ color: "#c62828" }}>Error: {error}</p>}
-
-      {response && (
-        <div style={{ marginTop: "24px" }}>
-          <h3>Response</h3>
-          <div style={{ background: "#fafafa", padding: "12px", borderRadius: "6px", whiteSpace: "pre-wrap" }}>
-            {response}
+      <form className="prompt-panel panel" onSubmit={handleGenerate}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">01 / YOUR PROMPT</p>
+            <h2>What would you like to explore?</h2>
           </div>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => setPrompt(SAMPLE_PROMPT)}
+            disabled={loading}
+          >
+            Use sample prompt <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <label className="visually-hidden" htmlFor="prompt">Your prompt</label>
+        <textarea
+          id="prompt"
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder="For example: Explain photosynthesis to a class 8 student in three bullet points."
+          maxLength={12000}
+          rows={4}
+          disabled={loading}
+          aria-describedby="prompt-help"
+        />
+        <div className="form-footer">
+          <span id="prompt-help">{prompt.length.toLocaleString()} / 12,000 characters</span>
+          <button className="primary-button" type="submit" disabled={loading || !prompt.trim()}>
+            {loading ? <><span className="spinner" /> Working…</> : <>Generate &amp; analyze <span aria-hidden="true">→</span></>}
+          </button>
+        </div>
+        {error && <p className="error-message" role="alert">{error}</p>}
+      </form>
+
+      {loading && (
+        <div className="loading-message" role="status">
+          <span className="spinner" /> Generating your response and evaluating its observable features…
         </div>
       )}
 
-      {analysis && (
-        <div style={{ marginTop: "24px" }}>
-          <h3>Quality Analysis</h3>
-          <ScoreBar label="Relevance" value={analysis.relevance} />
-          <ScoreBar label="Clarity" value={analysis.clarity} />
-          <ScoreBar label="Conciseness" value={analysis.conciseness} />
-          <ScoreBar label="Completeness" value={analysis.completeness} />
-          <ScoreBar label="Structure" value={analysis.structure} />
+      {result && analysis && (
+        <section className="results" aria-live="polite">
+          {result.mode === "demo" && (
+            <div className="demo-banner">
+              <span aria-hidden="true">ⓘ</span>
+              <div><strong>Demo mode</strong><p>This deterministic sample is not an AI-generated answer.</p></div>
+            </div>
+          )}
+          <div className="results-heading">
+            <div>
+              <p className="eyebrow">02 / RESPONSE</p>
+              <h2>Generated answer</h2>
+            </div>
+            <span className={`mode-pill ${result.mode}`}>{result.mode === "live" ? "Live · Anthropic" : "Demo · Sample"}</span>
+          </div>
+          <article className="response-card panel">
+            <div className="response-meta"><span>MODEL</span><span>{result.model}</span></div>
+            <p className="response-text">{result.response}</p>
+          </article>
 
-          <h4 style={{ marginTop: "16px" }}>Explanation</h4>
-          <ul style={{ fontSize: "14px" }}>
-            {analysis.explanations.map((line, idx) => (
-              <li key={idx}>{line}</li>
+          <div className="analysis-heading">
+            <div>
+              <p className="eyebrow">03 / QUALITY ANALYSIS</p>
+              <h2>Five heuristic indicators</h2>
+            </div>
+            <p>Signals to help you review the response — not a factuality check.</p>
+          </div>
+          <div className="score-grid">
+            {SCORE_LABELS.map(([key, label, description]) => (
+              <ScoreCard key={key} label={label} description={description} value={analysis[key]} />
             ))}
-          </ul>
+          </div>
+          <article className="explanations panel">
+            <div className="explanations-title">
+              <span className="insight-mark" aria-hidden="true">✳</span>
+              <div><p className="eyebrow">OBSERVATIONS</p><h3>What the indicators suggest</h3></div>
+            </div>
+            <ul>{analysis.explanations.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}</ul>
+          </article>
+        </section>
+      )}
+
+      {!loading && !result && !error && (
+        <div className="empty-state">
+          <span className="empty-icon" aria-hidden="true">✳</span>
+          <p>Your response and quality breakdown will appear here.</p>
         </div>
       )}
-    </div>
+
+      <footer className="footer">
+        <span>Built for thoughtful AI use</span>
+        <span>Scores are heuristic indicators and do not establish truth or correctness.</span>
+      </footer>
+    </main>
   );
 }

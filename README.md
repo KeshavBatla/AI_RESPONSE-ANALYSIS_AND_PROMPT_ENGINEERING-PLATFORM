@@ -1,114 +1,195 @@
 # AI Response Analysis and Prompt Engineering Platform
 
-A web-based platform that helps users understand, evaluate, and improve the AI responses they receive from generative AI systems. It analyzes response quality against the user's prompt and explains *why* a response has its observable characteristics — then suggests targeted prompt changes when the response falls short.
+A locally runnable React + FastAPI prototype for the core workflow:
 
-Prompt engineering is a supporting feature here, not the core focus. The core focus is response analysis, diagnosis, and explanation.
+**Prompt → response generation → heuristic analysis → five scores and explanations**
 
-## Problem
+The browser sends prompts to the FastAPI service. If an `ANTHROPIC_API_KEY` is
+configured on the server, generation uses Anthropic's Messages API. If no key
+is available, an explicitly enabled deterministic demo mode can illustrate the
+workflow. Demo output is labelled in the API, response text, and UI; it is not
+an AI-generated answer.
 
-Users often get AI responses that are too long, too short, too technical, incomplete, or misaligned with what they asked for — but they don't always know *why*, or what to change. This platform closes that gap by turning the final response into a transparent, explainable breakdown instead of a black box.
+All five analysis values (relevance, clarity, conciseness, completeness, and
+structure) are transparent **heuristic indicators** on a 0–100 scale. They are
+not factuality scores or guarantees of correctness. This checkpoint does not
+save prompts or response history.
 
-## Core Workflow
+## Project layout
 
-```
-Prompt → AI Response → Response Analysis → Explanation → Prompt Improvement → Revised Response → Comparison
-```
-
-1. User enters a prompt and generates a response.
-2. The system analyzes the response for relevance, clarity, conciseness, completeness, structure, and constraint adherence.
-3. The dashboard surfaces strengths, weaknesses, and likely causes, tied back to the prompt.
-4. If needed, the system suggests a targeted prompt revision.
-5. The user regenerates and compares the two responses side by side.
-
-## Features
-
-- **AI Response Analyzer** — scores relevance, clarity, conciseness, completeness, structure, and constraint adherence.
-- **Response Diagnosis** — flags observable issues (excessive length, missing info, poor structure, unmet format).
-- **Response Explanation** — connects those issues back to specific prompt instructions (no claims about hidden model reasoning).
-- **Prompt Analyzer** — extracts task, topic, audience, constraints, tone, and desired format from the prompt.
-- **Prompt Optimizer** — suggests targeted prompt edits when a response underperforms.
-- **Comparison Dashboard** — shows how prompt changes affect response quality across versions.
-
-## Architecture
-
-Standard 3-tier web app:
-
-| Layer | Tech | Responsibility |
-|---|---|---|
-| Frontend | React | Prompt input, response display, score visualization, comparisons |
-| Backend | Python + FastAPI | AI API calls, analysis orchestration, prompt/response history |
-| Database | PostgreSQL | Prompts, responses, analysis results, timestamps |
-
-```
-repo/
-├── frontend/       # Member 1 — UI: prompt input, response + score display
-├── backend/        # Member 2 — FastAPI service, AI API integration
-├── database/       # Member 3 — schema + response-analysis engine
-└── README.md
+```text
+Diviyansh/
+  frontend_App.jsx       React dashboard
+  main.jsx               React DOM mount entry point
+  frontend.css           Responsive dashboard styles
+  index.html              Vite entry page
+  package.json            Frontend dependencies and scripts
+  package-lock.json       Reproducible npm dependency lock
+Gurshant/
+  database_analysis.py   Shared heuristic analysis and legacy SQLAlchemy models
+KeshavBatla/
+  backend_main.py        FastAPI routes and Anthropic integration
+project-report-prototype-stage/
+  main.tex                Prototype-stage report
+  main.pdf                Compiled report
+  assets/                 Architecture and DFD diagrams
+tests/
+  test_analysis.py       Heuristic unit tests
+  test_api.py            FastAPI endpoint tests
+requirements.txt          Python dependencies
+README.md
 ```
 
-## Setup
+The existing team directories are retained so current work remains accessible.
+SQLAlchemy models are not wired into the application: there is no database
+dependency, history, or persistence in this prototype.
 
-**Backend**
-```bash
-cd backend
-pip install fastapi uvicorn httpx sqlalchemy psycopg2-binary
-export ANTHROPIC_API_KEY=your_key_here
-uvicorn main:app --reload
+## Requirements
+
+- Windows 10/11 with Python 3.10 or newer and the Python launcher (`py`).
+- Node.js 18 or newer with npm.
+- Internet access to install packages; live generation additionally requires
+  an Anthropic API key and network access to Anthropic.
+
+## Windows PowerShell setup
+
+Open PowerShell at the repository root:
+
+```powershell
+cd "C:\path\to\AI_RESPONSE-ANALYSIS_AND_PROMPT_ENGINEERING-PLATFORM"
 ```
 
-**Frontend**
-```bash
-cd frontend
+Create the virtual environment and install the backend, test, and analysis
+dependencies:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Install the frontend dependencies from the `Diviyansh` directory:
+
+```powershell
+cd .\Diviyansh
 npm install
+cd ..
+```
+
+### Start the app in demo mode (no API key)
+
+**PowerShell window 1 — backend, from the repository root:**
+
+```powershell
+$env:DEMO_MODE = "true"
+Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe -m uvicorn KeshavBatla.backend_main:app --host 127.0.0.1 --port 8000
+```
+
+**PowerShell window 2 — frontend, from the repository root:**
+
+```powershell
+cd .\Diviyansh
 npm run dev
 ```
 
-**Database**
-```bash
-# PostgreSQL connection string is set in database/analysis.py (get_session)
-# Tables are created automatically on first run via SQLAlchemy metadata.create_all
+Open <http://127.0.0.1:5173>. Choose **Use sample prompt**, then **Generate &
+analyze**. The deterministic sample is visibly marked **Demo mode** and is not
+an answer from an AI model.
+
+If port 8000 or 5173 is already occupied, stop the application using that port
+if it is yours, or choose another API port. For example, on the backend set
+`--port 8002`; also set the frontend environment before starting Vite:
+
+```powershell
+# Frontend PowerShell window:
+$env:VITE_API_BASE_URL = "http://127.0.0.1:8002/api"
+$env:FRONTEND_ORIGINS = "http://127.0.0.1:5173,http://127.0.0.1:5174"
+cd .\Diviyansh
+npm run dev -- --port 5174
 ```
 
-## Evaluation Criteria
+When changing the frontend origin/port, set this in the **backend window**
+before launching Uvicorn:
 
-- **Primary:** whether the platform consistently identifies real response characteristics and whether responses satisfy the user's stated objective and constraints.
-- **Secondary:** response quality, alignment, diagnosis accuracy, explanation usefulness, prompt-impact, and reduction in unnecessary repeated prompts.
+```powershell
+$env:FRONTEND_ORIGINS = "http://127.0.0.1:5174"
+```
 
-## Scope (Iteration 1)
+### Start the app with live Anthropic generation
 
-- Prompt input and AI response generation
-- Core quality analysis (relevance, clarity, conciseness, completeness, structure, constraints)
-- Strengths/weaknesses + response diagnosis display
-- Basic response explanation
-- Basic prompt component identification and initial improvement suggestions
-- Database storage for prompts and responses
-- Automated tests for the main workflow
+In the backend PowerShell window, set the key for that process only (do not
+paste it into source files, screenshots, or Git):
 
-## Later Iterations
+```powershell
+$env:ANTHROPIC_API_KEY = "your-private-Anthropic-key"
+$env:DEMO_MODE = "false"
+.\.venv\Scripts\python.exe -m uvicorn KeshavBatla.backend_main:app --host 127.0.0.1 --port 8000
+```
 
-- Deeper diagnosis and explanation
-- Full prompt/response comparison dashboard
-- Multi-task-type analysis (coding, summarization, Q&A)
-- Prompt evolution history and A/B testing
-- Prompt templates
-- Optional multi-provider support
+Start Vite in a second window using the command above. The default model is
+`claude-sonnet-4-6`; it can be changed on the server with
+`$env:ANTHROPIC_MODEL = "your-available-model"`. Never put API keys in
+`VITE_*` frontend variables: Vite variables are exposed to the browser.
 
-## Constraints & Principles
+When no API key is configured and demo mode is disabled, generation returns a
+clear HTTP 503 configuration error. Provider failures return a generic HTTP
+502 error; key values and provider error details are not sent to the browser.
 
-- No claims about hidden model reasoning or chain-of-thought — explanations are based only on observable prompt/response characteristics.
-- Uses an existing AI API rather than training a model.
-- Avoids storing unnecessary personal or sensitive conversation content.
-- Records the model/version used for each response so comparisons stay interpretable.
+## API endpoints
 
-## Team
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Service status (`{"status":"ok"}`) |
+| `POST` | `/api/generate` | Generate a live or explicitly labelled deterministic demo response |
+| `POST` | `/api/analyze` | Analyze a non-empty prompt/response pair |
+| `GET` | `/docs` | Interactive FastAPI API documentation |
 
-| Member | Area |
-|---|---|
-| Member 1 | Frontend |
-| Member 2 | Backend / AI integration |
-| Member 3 | Database / Analysis engine |
+Example request body for `/api/analyze`:
 
-## Status
+```json
+{
+  "prompt": "Explain photosynthesis in three points",
+  "response": "Plants use sunlight to make food.\n- Water and carbon dioxide are inputs.\n- Oxygen is released."
+}
+```
 
-🚧 In development — Software Engineering course project, weekly progress demos.
+The response contains integer `relevance`, `clarity`, `conciseness`,
+`completeness`, and `structure` fields (each 0–100), and an `explanations`
+array. Generation responses contain `response`, `model`, and `mode` (`live` or
+`demo`).
+
+## Run tests and build
+
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+cd .\Diviyansh
+npm run build
+```
+
+Tests stub the provider path and do not make paid API requests. The frontend
+production output is generated under `Diviyansh\dist\` and is ignored by Git.
+
+## Prototype report
+
+The Prototype Stage report, source, and architecture/DFD diagrams are in
+[`project-report-prototype-stage`](./project-report-prototype-stage/). The PDF
+is compiled from `main.tex`; editable student roll-number and email placeholders
+are intentionally left for the team.
+
+## Limitations and next steps
+
+- Heuristic signals are simple proxies, can mis-score paraphrases and context,
+  and do not establish factual correctness or safety.
+- The demonstration response is deterministic sample text, not a real LLM
+  answer. Live Anthropic generation requires a private key and was not exercised
+  by the automated tests.
+- Prompt and response history is not saved; the optional model definitions in
+  `Gurshant/database_analysis.py` are not connected to runtime code.
+- Prompt optimization, revised-response comparison, authentication, and
+  deployment are outside this checkpoint.
+
+Do not commit `.env`, key files, local database files, `.venv`, `node_modules`,
+or build artifacts. These are ignored by `.gitignore`.
